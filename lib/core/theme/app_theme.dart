@@ -92,7 +92,8 @@ class AppTheme {
 
     // ── AppBar ───────────────────────────────────────────────
     appBarTheme: AppBarTheme(
-      backgroundColor:  AppColors.surfaceLight,
+      // backgroundColor:  AppColors.surfaceLight,
+      backgroundColor: AppColors.primaryLight,
       foregroundColor:  AppColors.textPrimaryLight,
       surfaceTintColor: Colors.transparent,
       elevation:        0,
