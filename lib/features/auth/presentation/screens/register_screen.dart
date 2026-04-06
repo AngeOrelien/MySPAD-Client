@@ -3,287 +3,226 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/responsive_utils.dart';
-import '../../../../shared/models/spad_nav_item.dart';
-import '../../../../shared/widgets/spad_scaffold.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class RegisterForm extends StatefulWidget {
+  const RegisterForm({super.key, this.isDarkBg = false});
+  final bool isDarkBg;
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<RegisterForm> createState() => _RegisterFormState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  int _currentNavIndex = 2; // index 2 = S'inscrire
+class _RegisterFormState extends State<RegisterForm> {
+  final _formKey      = GlobalKey<FormState>();
+  final _nomCtrl      = TextEditingController();
+  final _emailCtrl    = TextEditingController();
+  final _telCtrl      = TextEditingController();
+  final _passwordCtrl = TextEditingController();
 
-  // GlobalKey pour valider le formulaire
-  // GlobalKey : identifiant unique d'un widget dans tout l'arbre
-  final _formKey = GlobalKey<FormState>();
+  bool   _showPwd   = false;
+  bool   _isLoading = false;
+  bool   _success   = false;
+  String _role      = 'famille';
 
-  // Controllers : lisent et contrôlent le contenu d'un TextField
-  final _nomController      = TextEditingController();
-  final _emailController    = TextEditingController();
-  final _telController      = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  // État local
-  bool _showPassword  = false;
-  bool _isLoading     = false;
-  String _selectedRole = 'famille'; // valeur par défaut
-
-  // Libérer les controllers quand le widget est détruit
-  // → évite les fuites mémoire
   @override
   void dispose() {
-    _nomController.dispose();
-    _emailController.dispose();
-    _telController.dispose();
-    _passwordController.dispose();
+    _nomCtrl.dispose();
+    _emailCtrl.dispose();
+    _telCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    setState(() { _isLoading = false; _success = true; });
   }
 
   @override
   Widget build(BuildContext context) {
-    return SpadScaffold(
-      navItems:     SpadNavItems.visitor,
-      currentIndex: _currentNavIndex,
-      onNavTap:     (i) => setState(() => _currentNavIndex = i),
-      appBar: AppBar(title: const Text("S'inscrire")),
-      body: _buildBody(context),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
     final scheme   = Theme.of(context).colorScheme;
-    final hPad     = ResponsiveUtils.horizontalPadding(context);
-    final isMobile = ResponsiveUtils.isMobile(context);
+    final fillColor = widget.isDarkBg
+        ? Colors.white.withOpacity(0.12)
+        : scheme.surfaceVariant;
+    final textColor = widget.isDarkBg ? Colors.white : scheme.onSurface;
+    final hintColor = widget.isDarkBg ? Colors.white54 : scheme.onSurfaceVariant;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          // Sur desktop, le formulaire ne prend pas toute la largeur
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // En-tête
-              Text("Créer votre compte",
-                style: AppTextStyles.headlineLarge.copyWith(color: scheme.onSurface)),
-              const SizedBox(height: 8),
-              Text("Remplissez le formulaire. Notre équipe validera votre inscription.",
-                style: AppTextStyles.bodyMedium.copyWith(color: scheme.onSurfaceVariant)),
-              const SizedBox(height: 32),
+    if (_success) return _buildSuccessView(context);
 
-              // ── FORMULAIRE ──────────────────────────────
-              // Form + GlobalKey → permet la validation groupée
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Sélecteur de rôle
-                    Text('Je suis …',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: scheme.onSurface)),
-                    const SizedBox(height: 8),
-                    _buildRoleSelector(context, scheme),
-                    const SizedBox(height: 20),
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // // Rôle
+            // _RoleSelector(
+            //   selected:  _role,
+            //   isDarkBg:  widget.isDarkBg,
+            //   onChanged: (r) => setState(() => _role = r),
+            // ),
 
-                    // Nom complet
-                    _SpadField(
-                      controller: _nomController,
-                      label:      'Nom complet',
-                      hint:       'Jean Dupont',
-                      icon:       Icons.person_outline,
-                      validator:  (v) {
-                        // validator : retourne null si OK, sinon message d'erreur
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Le nom est requis';
-                        }
-                        if (v.trim().length < 3) {
-                          return 'Minimum 3 caractères';
-                        }
-                        return null; // null = valide
-                      },
-                    ),
-                    const SizedBox(height: 16),
+            _Field(controller: _nomCtrl, label: 'Nom complet', hint: 'Jean Dupont',
+              icon: Icons.person_outline, fillColor: fillColor, textColor: textColor,
+              hintColor: hintColor, isDarkBg: widget.isDarkBg,
+              validator: (v) => (v == null || v.trim().length < 3)
+                  ? 'Minimum 3 caractères' : null),
+            const SizedBox(height: 12),
 
-                    // Email
-                    _SpadField(
-                      controller: _emailController,
-                      label:      'Adresse email',
-                      hint:       'jean@exemple.com',
-                      icon:       Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'L\'email est requis';
-                        // Regex simple de validation email
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Email invalide';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
+            _Field(controller: _emailCtrl, label: 'Email', hint: 'jean@exemple.com',
+              icon: Icons.email_outlined, fillColor: fillColor, textColor: textColor,
+              hintColor: hintColor, isDarkBg: widget.isDarkBg,
+              keyboard: TextInputType.emailAddress,
+              validator: (v) => (v == null || !v.contains('@'))
+                  ? 'Email invalide' : null),
+            const SizedBox(height: 12),
 
-                    // Téléphone
-                    _SpadField(
-                      controller:  _telController,
-                      label:       'Téléphone',
-                      hint:        '+237 6XX XXX XXX',
-                      icon:        Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                      validator:   (v) {
-                        if (v == null || v.isEmpty) return 'Le téléphone est requis';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
+            _Field(controller: _telCtrl, label: 'Téléphone', hint: '+237 6XX XXX XXX',
+              icon: Icons.phone_outlined, fillColor: fillColor, textColor: textColor,
+              hintColor: hintColor, isDarkBg: widget.isDarkBg,
+              keyboard: TextInputType.phone,
+              validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null),
+            const SizedBox(height: 12),
 
-                    // Mot de passe
-                    TextFormField(
-                      controller:   _passwordController,
-                      obscureText:  !_showPassword, // masque le texte si true
-                      decoration:   InputDecoration(
-                        labelText:    'Mot de passe',
-                        hintText:     'Minimum 8 caractères',
-                        prefixIcon:   const Icon(Icons.lock_outline),
-                        // Bouton œil pour afficher/masquer
-                        suffixIcon: IconButton(
-                          icon: Icon(_showPassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
-                          onPressed: () =>
-                              setState(() => _showPassword = !_showPassword),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Le mot de passe est requis';
-                        if (v.length < 8) return 'Minimum 8 caractères';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Bouton soumettre
-                    FilledButton(
-                      onPressed: _isLoading ? null : _submitForm,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: _isLoading
-                          // CircularProgressIndicator : spinner de chargement
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color:       Colors.white,
-                              ),
-                            )
-                          : const Text("Créer mon compte"),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Lien connexion
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          // TODO Phase 3 : context.go('/login')
-                        },
-                        child: const Text("Déjà un compte ? Se connecter"),
-                      ),
-                    ),
-                  ],
-                ),
+            _Field(controller: _passwordCtrl, label: 'Mot de passe', hint: '••••••••',
+              icon: Icons.lock_outline, fillColor: fillColor, textColor: textColor,
+              hintColor: hintColor, isDarkBg: widget.isDarkBg,
+              obscure: !_showPwd,
+              suffixIcon: IconButton(
+                icon: Icon(_showPwd ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: hintColor, size: 20),
+                onPressed: () => setState(() => _showPwd = !_showPwd),
               ),
-            ],
-          ),
+              validator: (v) => (v == null || v.length < 8)
+                  ? 'Minimum 8 caractères' : null),
+            const SizedBox(height: 20),
+
+            FilledButton(
+              onPressed: _isLoading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.green7,
+                foregroundColor: Colors.white,
+                padding:         const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _isLoading
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Créer mon compte'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildRoleSelector(BuildContext context, ColorScheme scheme) {
-    final roles = [
-      ('famille',  'Famille / Patient', Icons.family_restroom),
-      ('avs',      'Auxiliaire de vie',  Icons.badge),
-      ('medecin',  'Médecin',            Icons.local_hospital),
-    ];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: roles.map((r) {
-        final selected = _selectedRole == r.$1;
-        return ChoiceChip(
-          // ChoiceChip : chip sélectionnable (radio-button style)
-          label:    Text(r.$2),
-          avatar:   Icon(r.$3, size: 16),
-          selected: selected,
-          onSelected: (_) => setState(() => _selectedRole = r.$1),
-          selectedColor:    AppColors.teal3,
-          labelStyle: AppTextStyles.labelMedium.copyWith(
-            color: selected ? AppColors.teal12 : scheme.onSurface,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  void _submitForm() async {
-    // formKey.currentState!.validate() déclenche tous les validators
-    // Retourne true si tous passent, false sinon
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    // Simule un appel réseau de 2 secondes
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return; // vérifie que le widget est encore dans l'arbre
-
-    // Afficher un message de succès
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Demande envoyée ! Nous vous contactons sous 24h.'),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Widget _buildSuccessView(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 72, height: 72,
+          decoration: BoxDecoration(
+            color: AppColors.green1, shape: BoxShape.circle),
+          child: const Icon(Icons.check_circle_outline,
+            size: 40, color: AppColors.green7),
+        ),
+        const SizedBox(height: 20),
+        Text('Demande envoyée !',
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: widget.isDarkBg ? Colors.white
+                : Theme.of(context).colorScheme.onSurface)),
+        const SizedBox(height: 10),
+        Text('Notre équipe vérifiera votre compte et vous contactera sous 24h.',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: widget.isDarkBg ? Colors.white70
+                : Theme.of(context).colorScheme.onSurfaceVariant)),
+      ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// WIDGET INTERNE — champ de formulaire réutilisable
-// ─────────────────────────────────────────────────────────────
-class _SpadField extends StatelessWidget {
-  const _SpadField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    required this.validator,
-    this.keyboardType,
+// class _RoleSelector extends StatelessWidget {
+//   const _RoleSelector({
+//     required this.selected,
+//     required this.onChanged,
+//     required this.isDarkBg,
+//   });
+//   final String                 selected;
+//   final ValueChanged<String>   onChanged;
+//   final bool                   isDarkBg;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final roles = [
+//       ('famille', 'Famille',    Icons.family_restroom),
+//       // ('avs',     'AVS',        Icons.badge),
+//       // ('medecin', 'Médecin',    Icons.local_hospital),
+//     ];
+//     return Wrap(
+//       spacing: 6, runSpacing: 6,
+//       children: roles.map((r) {
+//         final isSelected = selected == r.$1;
+//         return ChoiceChip(
+//           label:    Text(r.$2),
+//           avatar:   Icon(r.$3, size: 16),
+//           selected: isSelected,
+//           onSelected: (_) => onChanged(r.$1),
+//           selectedColor: AppColors.teal3,
+//           labelStyle: AppTextStyles.labelMedium.copyWith(
+//             color: isSelected ? AppColors.teal12
+//                 : isDarkBg ? Colors.white
+//                 : Theme.of(context).colorScheme.onSurface),
+//         );
+//       }).toList(),
+//     );
+//   }
+// }
+
+class _Field extends StatelessWidget {
+  const _Field({
+    required this.controller, required this.label, required this.hint,
+    required this.icon, required this.fillColor, required this.textColor,
+    required this.hintColor, required this.isDarkBg,
+    this.keyboard, this.obscure = false, this.suffixIcon, this.validator,
   });
 
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final IconData icon;
-  final FormFieldValidator<String> validator;
-  final TextInputType? keyboardType;
+  final TextEditingController        controller;
+  final String                       label, hint;
+  final IconData                     icon;
+  final Color                        fillColor, textColor, hintColor;
+  final bool                         isDarkBg, obscure;
+  final TextInputType?               keyboard;
+  final Widget?                      suffixIcon;
+  final FormFieldValidator<String>?  validator;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller:   controller,
-      keyboardType: keyboardType,
+      keyboardType: keyboard,
+      obscureText:  obscure,
+      style:        AppTextStyles.bodyMedium.copyWith(color: textColor),
       decoration: InputDecoration(
-        labelText:  label,
-        hintText:   hint,
-        prefixIcon: Icon(icon),
+        labelText:     label,
+        hintText:      hint,
+        labelStyle:    AppTextStyles.bodySmall.copyWith(color: hintColor),
+        hintStyle:     AppTextStyles.bodySmall.copyWith(color: hintColor),
+        prefixIcon:    Icon(icon, color: hintColor, size: 20),
+        suffixIcon:    suffixIcon,
+        filled:        true,
+        fillColor:     fillColor,
+        border:        OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: isDarkBg ? Colors.white24 : Colors.transparent)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: isDarkBg ? Colors.white24 : Colors.transparent)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.teal9, width: 2)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
       validator: validator,
     );
