@@ -1,281 +1,202 @@
-// lib/features/auth/presentation/screens/login_screen.dart
-//
-// LoginForm : formulaire de connexion.
-// Phase 2 : authentification simulée avec des comptes démo.
-// Phase 4 : remplacer _loginDemo() par un appel HTTP au backend.
-//
-// COMPTES DÉMO (à supprimer en prod) :
-//   avs@spad.cm          / avs1234
-//   famille@spad.cm      / famille1234
-//   admin@spad.cm        / admin1234
-//   coordsante@spad.cm   / coord1234
-
+// lib/features/auth/screens/login_screen.dart
+// Scaffold SEUL — pas de BottomNav, pas de Sidebar, pas de FAB chatbot
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/user_session.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-class LoginForm extends StatefulWidget {
-  const LoginForm({
-    super.key,
-    required this.onLogin,
-    this.isDarkBg = false,
-  });
+import '../../../../core/bloc/auth/auth_bloc.dart';
+import '../../../../core/router/route_names.dart';
 
-  final void Function({required String role, required String name, String email}) onLogin;
-  final bool isDarkBg;
-
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
   @override
-  State<LoginForm> createState() => _LoginFormState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginFormState extends State<LoginForm> {
-  final _formKey      = GlobalKey<FormState>();
-  final _emailCtrl    = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-
-  bool   _showPwd   = false;
-  bool   _isLoading = false;
-  String? _errorMsg;
-
-  // ── Comptes démo ───────────────────────────────────────────
-  static const _demoAccounts = {
-    'avs@spad.cm':         {'role': 'avs',            'name': 'Jean Ngono AVS',   'password': 'avs1234'},
-    'famille@spad.cm':     {'role': 'famille',         'name': 'Marie Famille',    'password': 'famille1234'},
-    'admin@spad.cm':       {'role': 'admin',           'name': 'Admin SPAD',       'password': 'admin1234'},
-    'coordsante@spad.cm':  {'role': 'coordSante',      'name': 'Paul Coordinateur','password': 'coord1234'},
-    'coordpers@spad.cm':   {'role': 'coordPersonnel',  'name': 'Alice Personnel',  'password': 'coord1234'},
-    'medecin@spad.cm':     {'role': 'medecin',         'name': 'Dr. Kamga',        'password': 'med1234'},
-  };
+class _LoginScreenState extends State<LoginScreen> {
+  final _form     = GlobalKey<FormState>();
+  final _email    = TextEditingController();
+  final _password = TextEditingController();
+  bool  _showPwd  = false;
 
   @override
-  void dispose() {
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _email.dispose(); _password.dispose(); super.dispose(); }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() { _isLoading = true; _errorMsg = null; });
-
-    // Simule un délai réseau de 1.2s
-    // Phase 4 : remplacer par http.post('/api/auth/login', ...)
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-
-    final email    = _emailCtrl.text.trim().toLowerCase();
-    final password = _passwordCtrl.text;
-    final account  = _demoAccounts[email];
-
-    if (account != null && account['password'] == password) {
-      // ✅ Succès : notifier AppShell
-      widget.onLogin(
-        role:  account['role']!,
-        name:  account['name']!,
-        email: email,
-      );
-    } else {
-      setState(() {
-        _isLoading = false;
-        _errorMsg  = 'Email ou mot de passe incorrect.';
-      });
-    }
+  void _submit() {
+    if (!_form.currentState!.validate()) return;
+    // Dispatcher l'event → AuthBloc → main.dart BlocListener navigue
+    context.read<AuthBloc>().add(
+      AuthLoginRequested(email: _email.text.trim(), password: _password.text));
   }
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final inputFill = widget.isDarkBg
-        ? Colors.white.withOpacity(0.12)
-        : scheme.surfaceVariant;
-    final inputText = widget.isDarkBg ? Colors.white : scheme.onSurface;
-    final hintText  = widget.isDarkBg ? Colors.white54 : scheme.onSurfaceVariant;
+  Widget build(BuildContext ctx) {
+    final narrow = MediaQuery.of(ctx).size.width < 700;
+    return Scaffold(
+      body: Stack(children: [
+        // Image de fond
+        Positioned.fill(child: Image.asset('assets/images/auth_bg.jpg',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF004345), Color(0xFF00C7CC)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight)),
+          ),
+        )),
+        Positioned.fill(child: Container(color: Colors.black.withOpacity(0.55))),
+        SafeArea(child: narrow ? _mobile(ctx) : _desktop(ctx)),
+      ]),
+    );
+  }
 
-    return Form(
-      key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Email ──────────────────────────────────────
-            _buildField(
-              controller:   _emailCtrl,
-              label:        'Email',
-              hint:         'avs@spad.cm',
-              icon:         Icons.email_outlined,
-              keyboard:     TextInputType.emailAddress,
-              fillColor:    inputFill,
-              textColor:    inputText,
-              hintColor:    hintText,
-              isDarkBg:     widget.isDarkBg,
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Email requis';
-                if (!v.contains('@'))       return 'Email invalide';
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
+  Widget _mobile(BuildContext ctx) => SingleChildScrollView(
+    padding: const EdgeInsets.all(24),
+    child: Column(children: [
+      const SizedBox(height: 32),
+      _Logo(),
+      const SizedBox(height: 32),
+      _Card(form: _form, email: _email, password: _password,
+        showPwd: _showPwd, onTogglePwd: () => setState(() => _showPwd = !_showPwd),
+        onSubmit: _submit),
+    ]),
+  );
 
-            // ── Mot de passe ───────────────────────────────
-            _buildField(
-              controller:   _passwordCtrl,
-              label:        'Mot de passe',
-              hint:         '••••••••',
-              icon:         Icons.lock_outline,
-              fillColor:    inputFill,
-              textColor:    inputText,
-              hintColor:    hintText,
-              isDarkBg:     widget.isDarkBg,
-              obscure:      !_showPwd,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _showPwd ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: hintText, size: 20,
-                ),
-                onPressed: () => setState(() => _showPwd = !_showPwd),
+  Widget _desktop(BuildContext ctx) => Row(children: [
+    Expanded(child: Padding(
+      padding: const EdgeInsets.all(64),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _Logo(),
+        const SizedBox(height: 24),
+        const Text('SPAD Cameroun',
+          style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        Text('Accompagnement à domicile\npour vos proches âgés.',
+          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 18)),
+      ]),
+    )),
+    Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460),
+      child: Padding(padding: const EdgeInsets.all(48),
+        child: _Card(form: _form, email: _email, password: _password,
+          showPwd: _showPwd, onTogglePwd: () => setState(() => _showPwd = !_showPwd),
+          onSubmit: _submit),
+      ),
+    )),
+  ]);
+}
+
+class _Logo extends StatelessWidget {
+  @override
+  Widget build(BuildContext ctx) => Image.asset('assets/images/logo_spad.png',
+    width: 80, height: 80,
+    errorBuilder: (_, __, ___) => Container(
+      width: 80, height: 80,
+      decoration: BoxDecoration(color: const Color(0xFF00C7CC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2)),
+      child: const Center(child: Text('S',
+        style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800))),
+    ));
+}
+
+class _Card extends StatelessWidget {
+  const _Card({required this.form, required this.email, required this.password,
+    required this.showPwd, required this.onTogglePwd, required this.onSubmit});
+  final GlobalKey<FormState>   form;
+  final TextEditingController  email, password;
+  final bool                   showPwd;
+  final VoidCallback           onTogglePwd, onSubmit;
+
+  static const _demos = [
+    ('avs',    'avs@spad.cm',    'avs1234'),
+    ('famille','famille@spad.cm','fam1234'),
+    ('admin',  'admin@spad.cm',  'admin1234'),
+  ];
+
+  @override
+  Widget build(BuildContext ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: scheme.surface.withOpacity(0.97), borderRadius: BorderRadius.circular(20)),
+      child: BlocConsumer<AuthBloc, AuthState>(
+        listener: (c, s) {
+          if (s is AuthError) {
+            ScaffoldMessenger.of(c).showSnackBar(SnackBar(
+              content: Text(s.message), backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating));
+          }
+          // Navigation vers dashboard gérée dans main.dart BlocListener
+        },
+        builder: (c, s) {
+          final loading = s is AuthLoading;
+          return Form(key: form, child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Connexion', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: scheme.onSurface)),
+              const SizedBox(height: 6),
+              Text('Accédez à votre espace personnel',
+                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 24),
+
+              TextFormField(
+                controller: email, keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                validator: (v) => (v == null || !v.contains('@')) ? 'Email invalide' : null,
               ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Mot de passe requis';
-                if (v.length < 6)           return 'Minimum 6 caractères';
-                return null;
-              },
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 14),
 
-            // ── Lien mot de passe oublié ───────────────────
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: Text('Mot de passe oublié ?',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.teal9)),
+              TextFormField(
+                controller: password, obscureText: !showPwd,
+                decoration: InputDecoration(
+                  labelText: 'Mot de passe', prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(showPwd ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    onPressed: onTogglePwd),
+                ),
+                validator: (v) => (v == null || v.length < 6) ? 'Min. 6 caractères' : null,
               ),
-            ),
+              const SizedBox(height: 20),
 
-            // ── Message d'erreur ───────────────────────────
-            if (_errorMsg != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color:        AppColors.errorLight,
-                  borderRadius: BorderRadius.circular(8),
-                  border:       Border.all(color: AppColors.error.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, size: 16, color: AppColors.error),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(_errorMsg!,
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.error))),
-                  ],
-                ),
+              FilledButton(
+                onPressed: loading ? null : onSubmit,
+                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: loading
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Se connecter'),
+              ),
+              const SizedBox(height: 12),
+
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('Famille ? ', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                TextButton(onPressed: () => ctx.go(RouteNames.register), child: const Text('Souscrire')),
+              ]),
+              TextButton.icon(
+                onPressed: () => ctx.go(RouteNames.home),
+                icon: const Icon(Icons.arrow_back, size: 16),
+                label: const Text('Retour à l\'accueil'),
+                style: TextButton.styleFrom(foregroundColor: scheme.onSurfaceVariant),
+              ),
+
+              const Divider(height: 24),
+              Text('Comptes démo',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 6),
+              Wrap(alignment: WrapAlignment.center, spacing: 6, runSpacing: 4,
+                children: _demos.map((d) => ActionChip(
+                  label: Text(d.$1, style: const TextStyle(fontSize: 11)),
+                  onPressed: () { email.text = d.$2; password.text = d.$3; },
+                )).toList(),
               ),
             ],
-            const SizedBox(height: 20),
-
-            // ── Bouton connexion ───────────────────────────
-            FilledButton(
-              onPressed: _isLoading ? null : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.teal9,
-                foregroundColor: Colors.white,
-                padding:         const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: _isLoading
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Se connecter'),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Comptes démo (à supprimer en prod) ────────
-            _buildDemoAccounts(context),
-          ],
-        ),
+          ));
+        },
       ),
-    );
-  }
-
-  Widget _buildDemoAccounts(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Text('— Comptes démo —',
-          style: AppTextStyles.labelSmall.copyWith(
-            color: widget.isDarkBg ? Colors.white54 : scheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6, runSpacing: 6,
-          alignment: WrapAlignment.center,
-          children: _demoAccounts.entries.map((e) {
-            final role = e.value['role']!;
-            return ActionChip(
-              label: Text(role, style: AppTextStyles.labelSmall),
-              onPressed: () {
-                _emailCtrl.text    = e.key;
-                _passwordCtrl.text = e.value['password']!;
-              },
-              backgroundColor: AppColors.teal3,
-              labelStyle: AppTextStyles.labelSmall.copyWith(color: AppColors.teal12),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String                label,
-    required String                hint,
-    required IconData              icon,
-    required Color                 fillColor,
-    required Color                 textColor,
-    required Color                 hintColor,
-    required bool                  isDarkBg,
-    TextInputType?                 keyboard,
-    bool                           obscure  = false,
-    Widget?                        suffixIcon,
-    FormFieldValidator<String>?    validator,
-  }) {
-    return TextFormField(
-      controller:   controller,
-      keyboardType: keyboard,
-      obscureText:  obscure,
-      style:        AppTextStyles.bodyMedium.copyWith(color: textColor),
-      decoration: InputDecoration(
-        labelText:   label,
-        hintText:    hint,
-        labelStyle:  AppTextStyles.bodySmall.copyWith(color: hintColor),
-        hintStyle:   AppTextStyles.bodySmall.copyWith(color: hintColor),
-        prefixIcon:  Icon(icon, color: hintColor, size: 20),
-        suffixIcon:  suffixIcon,
-        filled:      true,
-        fillColor:   fillColor,
-        border:      OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:   BorderSide(
-            color: isDarkBg ? Colors.white24 : Colors.transparent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:   BorderSide(
-            color: isDarkBg ? Colors.white24 : Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:   const BorderSide(color: AppColors.teal9, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:   const BorderSide(color: AppColors.error),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      ),
-      validator: validator,
     );
   }
 }

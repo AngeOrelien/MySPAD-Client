@@ -80,7 +80,7 @@ class _AuthHubScreenState extends State<AuthHubScreen>
     return SpadScaffold(
       navItems: SpadNavItems.visitor,
       currentIndex: widget.currentIndex,
-      onNavTap: widget.onNavTap,
+      onNavTap: widget.onNavTap ?? (index) {}, // callback vers AppShell
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -150,7 +150,7 @@ class _AuthHubScreenState extends State<AuthHubScreen>
     return SpadScaffold(
       navItems: SpadNavItems.visitor,
       currentIndex: widget.currentIndex,
-      onNavTap: widget.onNavTap,
+      onNavTap: widget.onNavTap ?? (index) {}, // callback vers AppShell
       body: Row(
         children: [
           // Colonne gauche : image + branding (50%)
@@ -304,9 +304,9 @@ class _AuthHubScreenState extends State<AuthHubScreen>
             controller: _tabController,
             children: [
               // Onglet 1 : Connexion
-              LoginForm(onLogin: widget.onLogin, isDarkBg: isDark),
+              // LoginForm(onLogin: widget.onLogin, isDarkBg: isDark),
               // Onglet 2 : Inscription
-              RegisterForm(isDarkBg: isDark),
+              // RegisterForm(isDarkBg: isDark),
             ],
           ),
         ),

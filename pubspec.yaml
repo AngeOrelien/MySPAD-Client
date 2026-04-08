@@ -35,6 +35,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # go_router package for navigation and routing
+  go_router: ^14.0.0
+
+  # flutter_bloc package for state management using the BLoC pattern
+  flutter_bloc: ^8.1.6 
+
+  # equatable package for value equality in Dart objects, often used with BLoC
+  equatable: ^2.0.5
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -80,6 +90,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
