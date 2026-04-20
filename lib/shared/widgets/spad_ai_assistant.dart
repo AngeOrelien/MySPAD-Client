@@ -32,7 +32,7 @@ class SpadAIAssistant extends StatelessWidget {
       heroTag:   'spad-ai',
       tooltip:   'Assistant SPAD',
       onPressed: () => _openAssistant(context),
-      backgroundColor: AppColors.primaryLight,
+      backgroundColor: AppColors.brandPrimaryLight,
       foregroundColor: Colors.white,
       child: const Icon(Icons.smart_toy_outlined, size: 24),
     );

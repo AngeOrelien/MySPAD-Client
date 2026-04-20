@@ -24,11 +24,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myspad/core/utils/user_session.dart';
-import 'package:myspad/features/auth/presentation/screens/login_screen.dart';
-import 'package:myspad/features/auth/presentation/screens/register_screen.dart';
-import 'package:myspad/features/public/presentation/screens/home_screen.dart';
-import 'package:myspad/features/public/presentation/screens/offres_screen.dart';
+import 'package:spadcameroun/core/utils/user_session.dart';
+import 'package:spadcameroun/features/auth/presentation/screens/login_screen.dart';
+import 'package:spadcameroun/features/auth/presentation/screens/register_screen.dart';
+import 'package:spadcameroun/features/dashboard/avs/tabs/avs_home_tab.dart';
+import 'package:spadcameroun/features/dashboard/avs/tabs/avs_localisation_tab.dart';
+import 'package:spadcameroun/features/dashboard/avs/tabs/avs_patient_tab.dart';
+import 'package:spadcameroun/features/dashboard/avs/tabs/avs_rapport_tab.dart';
+import 'package:spadcameroun/features/public/presentation/screens/home_screen.dart';
+import 'package:spadcameroun/features/public/presentation/screens/offres_screen.dart';
 // import '../../utils/user_session.dart';
 import 'route_names.dart';
 

@@ -1,11 +1,11 @@
 {
-    "name": "myspad",
-    "short_name": "myspad",
+    "name": "spadcameroun",
+    "short_name": "spadcameroun",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A Flutter project for SPAD CAMEROUN App",
+    "description": "A Flutter Project for SPAD CAMEROUN App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

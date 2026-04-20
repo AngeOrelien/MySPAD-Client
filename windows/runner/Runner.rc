@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.myspad" "\0"
-            VALUE "FileDescription", "myspad" "\0"
+            VALUE "CompanyName", "com.spadcameroun" "\0"
+            VALUE "FileDescription", "spadcameroun" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "myspad" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.myspad. All rights reserved." "\0"
-            VALUE "OriginalFilename", "myspad.exe" "\0"
-            VALUE "ProductName", "myspad" "\0"
+            VALUE "InternalName", "spadcameroun" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.spadcameroun. All rights reserved." "\0"
+            VALUE "OriginalFilename", "spadcameroun.exe" "\0"
+            VALUE "ProductName", "spadcameroun" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

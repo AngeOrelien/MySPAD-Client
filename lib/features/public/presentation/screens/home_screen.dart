@@ -1,131 +1,116 @@
-// lib/features/public/screens/home_screen.dart
-//
-// DIFFÉRENCES importantes vs version précédente :
-// 1. Plus de SpadScaffold ici — c'est _VisitorShell dans
-//    app_router.dart qui fournit le BottomNav
-// 2. Le body de cette page = Scaffold simple (ou juste un widget)
-// 3. context.go() pour naviguer → GoRouter gère tout
-// 4. Bouton "Connexion" clairement visible dans l'AppBar
-// ─────────────────────────────────────────────────────────────
-
+// lib/features/public/presentation/screens/home_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/bloc/theme/theme_cubit.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../shared/widgets/spad_ai_fab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  @override State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Hero auto-scroll
-  late final PageController _heroCtrl;
-  Timer? _heroTimer;
-  int    _heroIndex = 0;
+  final _heroCtrl = PageController();
+  Timer? _timer;
+  int    _heroIdx = 0;
 
-  static const _slides = [
-    _Slide('Le bien-être de\nvos proches', 'Auxiliaires de vie qualifiés, suivi médical rigoureux.', 'assets/images/hero_1.jpg'),
-    _Slide('Accompagnement\nà domicile',   'Hygiène, nutrition, activités et suivi médicamenteux.',  'assets/images/hero_2.jpg'),
-    _Slide('Disponibles à\nYaoundé & Douala', 'Plus de 150 patients suivis, 7j/7.',                  'assets/images/hero_3.jpg'),
+  static const _heroSlides = [
+    _HeroData('Le bien-être\nde vos proches',   'Auxiliaires de vie qualifiés, 7j/7',           'assets/images/hero_1.jpg', Color(0xFF004345)),
+    _HeroData('Suivi médical\nquotidien',        'Paramètres vitaux, médicaments, rapports',     'assets/images/hero_2.jpg', Color(0xFF032820)),
+    _HeroData('Yaoundé\n& Douala',              'Plus de 150 patients suivis depuis 2020',      'assets/images/hero_3.jpg', Color(0xFF1A0800)),
   ];
 
   @override
   void initState() {
     super.initState();
-    _heroCtrl = PageController();
-    _heroTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_heroCtrl.hasClients) return;
-      final next = (_heroIndex + 1) % _slides.length;
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      final next = (_heroIdx + 1) % _heroSlides.length;
       _heroCtrl.animateToPage(next,
-        duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+          duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
     });
   }
 
-  @override
-  void dispose() {
-    _heroTimer?.cancel();
-    _heroCtrl.dispose();
-    super.dispose();
-  }
+  @override void dispose() { _timer?.cancel(); _heroCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    // Ce widget ne gère PAS la BottomNav — c'est _VisitorShell
-    // On retourne juste le contenu de la page
+    final scheme   = Theme.of(context).colorScheme;
+    final isDark   = context.watch<ThemeCubit>().isDark;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
-      // ── AppBar avec boutons connexion/inscription ──────────
-      appBar: _buildAppBar(context),
-      body:   _buildBody(context),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext ctx) {
-    final scheme   = Theme.of(ctx).colorScheme;
-    final isNarrow = MediaQuery.of(ctx).size.width < 600;
-
-    return AppBar(
-      elevation: 0,
-      // Logo
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset('assets/images/logo_spad.png', width: 32, height: 32,
-            errorBuilder: (_, __, ___) => Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                color: scheme.primary, borderRadius: BorderRadius.circular(8)),
-              child: Center(child: Text('S', style: TextStyle(
-                color: scheme.onPrimary, fontWeight: FontWeight.w700, fontSize: 16))),
+      backgroundColor: scheme.background,
+      appBar: AppBar(
+        // Logo
+        leading: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Image.asset('assets/images/logo_spad.png',
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                    color: scheme.primary, borderRadius: BorderRadius.circular(8)),
+                child: Center(child: Text('S',
+                    style: TextStyle(color: scheme.onPrimary,
+                        fontWeight: FontWeight.w800, fontSize: 13))),
+              )),
+        ),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('SPAD Cameroun',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                  color: scheme.onSurface)),
+          Text('Soins à domicile',
+              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        ]),
+        actions: [
+          // ── Toggle thème ──────────────────────────────
+          IconButton(
+            iconSize: 20,
+            icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            tooltip: isDark ? 'Mode clair' : 'Mode sombre',
+            onPressed: () => context.read<ThemeCubit>().toggle(),
+          ),
+          // ── Connexion : icône sur mobile, label sur desktop ──
+          isMobile
+              ? IconButton(
+            iconSize: 20,
+            icon: const Icon(Icons.login_rounded),
+            tooltip: 'Connexion',
+            onPressed: () => context.go(RouteNames.login),
+          )
+              : Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: () => context.go(RouteNames.login),
+              style: TextButton.styleFrom(
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                minimumSize: Size.zero,
+              ),
+              child: const Text('Connexion',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
           ),
-          const SizedBox(width: 10),
-          const Text('SPAD Cameroun', style: TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-      actions: [
-        if (isNarrow)
-          // Mobile : icône seule
-          IconButton(
-            icon:      const Icon(Icons.login),
-            tooltip:   'Connexion',
-            // context.go() : naviguer sans historique
-            onPressed: () => ctx.go(RouteNames.login),
-          )
-        else ...[
-          // Desktop : boutons texte
-          TextButton(onPressed: () {}, child: const Text('À propos')),
-          TextButton(onPressed: () {}, child: const Text('Services')),
           const SizedBox(width: 4),
-          OutlinedButton(
-            onPressed: () => ctx.go(RouteNames.login),
-            child:     const Text('Connexion'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: () => ctx.go(RouteNames.register),
-            child:     const Text('S\'inscrire (famille)'),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildBody(BuildContext ctx) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHero(ctx),
-          _buildStats(ctx),
-          _buildActualites(ctx),
-          _buildServices(ctx),
-          _buildFooter(ctx),
         ],
       ),
+      body: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _buildHero(context),
+          _buildQuickActions(context),
+          _buildStats(context),
+          _buildActualites(context),
+          _buildServices(context),
+          _buildFooter(context),
+          const SizedBox(height: 80),
+        ]),
+      ),
+      floatingActionButton: const SpadAIFab(),
     );
   }
 
@@ -133,122 +118,137 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHero(BuildContext ctx) {
     final isMobile = MediaQuery.of(ctx).size.width < 600;
     return SizedBox(
-      height: isMobile ? 360 : 500,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller:    _heroCtrl,
-            itemCount:     _slides.length,
-            onPageChanged: (i) => setState(() => _heroIndex = i),
-            itemBuilder:   (_, i) => _SlideWidget(slide: _slides[i]),
-          ),
-          // Dots
-          Positioned(
-            bottom: 20, left: 0, right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_slides.length, (i) {
-                return AnimatedContainer(
-                  duration:   const Duration(milliseconds: 300),
-                  margin:     const EdgeInsets.symmetric(horizontal: 4),
-                  width:      i == _heroIndex ? 24 : 8,
-                  height:     8,
+      height: isMobile ? 220 : 340,
+      child: Stack(children: [
+        PageView.builder(
+          controller:    _heroCtrl,
+          itemCount:     _heroSlides.length,
+          onPageChanged: (i) => setState(() => _heroIdx = i),
+          itemBuilder:   (_, i) => _HeroCard(data: _heroSlides[i]),
+        ),
+        Positioned(bottom: 10, left: 0, right: 0,
+            child: Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_heroSlides.length, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == _heroIdx ? 16 : 5, height: 5,
+                decoration: BoxDecoration(
+                    color: i == _heroIdx ? Colors.white : Colors.white54,
+                    borderRadius: BorderRadius.circular(3)),
+              )),
+            )),
+      ]),
+    );
+  }
+
+  // ── ACTIONS RAPIDES ──────────────────────────────────────────
+  Widget _buildQuickActions(BuildContext ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
+    final actions = [
+      (Icons.login_rounded,   'Se\nconnecter', RouteNames.login),
+      (Icons.family_restroom, 'Souscrire',     RouteNames.register),
+      (Icons.work_outline,    'Nos offres',    RouteNames.offres),
+      (Icons.phone_outlined,  'Contact',       ''),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Row(children: actions.map((a) => Expanded(child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          onTap: () { if (a.$3.isNotEmpty) ctx.go(a.$3); },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            decoration: BoxDecoration(
+              color:        scheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border:       Border.all(color: scheme.outline.withOpacity(0.2)),
+            ),
+            child: Column(children: [
+              Container(width: 38, height: 38,
                   decoration: BoxDecoration(
-                    color:        i == _heroIndex ? Colors.white : Colors.white54,
-                    borderRadius: BorderRadius.circular(4)),
-                );
-              }),
-            ),
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(9)),
+                  child: Icon(a.$1, color: scheme.primary, size: 19)),
+              const SizedBox(height: 5),
+              Text(a.$2, textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
+                      color: scheme.onSurface, height: 1.2)),
+            ]),
           ),
-          // ── CTA centré ───────────────────────────────────────
-          Positioned(
-            bottom: 56, left: 24, right: 24,
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              children: [
-                FilledButton.icon(
-                  onPressed: () => ctx.go(RouteNames.login),
-                  icon:  const Icon(Icons.login, size: 18),
-                  label: const Text('Se connecter'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C7CC),
-                    foregroundColor: Colors.white),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => ctx.go(RouteNames.register),
-                  icon:  const Icon(Icons.family_restroom, size: 18),
-                  label: const Text('Souscrire (famille)'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white70)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ))).toList()),
     );
   }
 
   // ── STATS ─────────────────────────────────────────────────────
   Widget _buildStats(BuildContext ctx) {
-    final stats = [('150+','Patients'), ('80+','AVS qualifiés'), ('5 ans','Expérience'), ('2','Villes')];
-    return Container(
-      color:   Theme.of(ctx).colorScheme.surface,
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-      child:   LayoutBuilder(builder: (_, c) {
-        final cols = c.maxWidth < 600 ? 2 : 4;
-        return GridView.count(
-          crossAxisCount:   cols,
-          shrinkWrap:       true,
-          physics:          const NeverScrollableScrollPhysics(),
-          mainAxisSpacing:  12,
-          crossAxisSpacing: 12,
-          childAspectRatio: c.maxWidth < 400 ? 1.4 : 1.8,
-          children: stats.map((s) => _StatTile(value: s.$1, label: s.$2)).toList(),
-        );
-      }),
+    final scheme = Theme.of(ctx).colorScheme;
+    final stats = [
+      ('150+', 'Patients\nsuivis',  const Color(0xFF007EB0)),
+      ('80+',  'AVS\nqualifiés',   const Color(0xFF08664F)),
+      ('5 ans','Expérience',       const Color(0xFFC28018)),
+      ('2',    'Villes',           const Color(0xFF007E81)),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('SPAD en chiffres',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: scheme.onSurface)),
+        const SizedBox(height: 10),
+        Row(children: stats.map((s) => Expanded(child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+            decoration: BoxDecoration(
+                color:        s.$3.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border:       Border.all(color: s.$3.withOpacity(0.25))),
+            child: FittedBox(fit: BoxFit.scaleDown, child: Column(children: [
+              Text(s.$1, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: s.$3)),
+              const SizedBox(height: 2),
+              Text(s.$2, textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant, height: 1.2)),
+            ])),
+          ),
+        ))).toList()),
+      ]),
     );
   }
 
   // ── ACTUALITÉS ────────────────────────────────────────────────
   Widget _buildActualites(BuildContext ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
     final actus = [
-      _Actu('Formation AVS — Juillet 2025', 'Session de formation ouverte aux nouvelles recrues.', '28 juin 2025', 'Formation', const Color(0xFF00C7CC)),
-      _Actu('Partenariat Hôpital Central', 'Accord de collaboration pour le suivi médical à domicile.', '15 juin 2025', 'Partenariat', const Color(0xFF0C8C6B)),
-      _Actu('Lancement de l\'app mobile', 'Suivi en temps réel désormais disponible sur mobile.', '1 juin 2025', 'Tech', const Color(0xFFF5A623)),
-      _Actu('Recrutement AVS', 'Nous recrutons à Yaoundé et Douala.', '20 mai 2025', 'Recrutement', const Color(0xFF007E81)),
+      _ActuData('Formation AVS — Juillet 2025',  'Session ouverte aux nouvelles recrues.',         '28 juin 2025', 'Formation',  const Color(0xFF007EB0), 'assets/images/actu_1.jpg'),
+      _ActuData('Partenariat Hôpital Central',   'Accord de collaboration pour le suivi médical.', '15 juin 2025', 'Partenariat',const Color(0xFF08664F), 'assets/images/actu_2.jpg'),
+      _ActuData('Application mobile SPAD',       'Suivi en temps réel sur Android et iOS.',        '1 juin 2025',  'Tech',       const Color(0xFFC28018), 'assets/images/actu_3.jpg'),
     ];
-    return Container(
-      color:   const Color(0xFFF9F9FB),
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Actualités SPAD', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
-              TextButton.icon(onPressed: () {}, label: const Text('Voir tout'),
-                icon: const Icon(Icons.arrow_forward, size: 16)),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 240,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding:         const EdgeInsets.symmetric(horizontal: 24),
-              itemCount:       actus.length,
-              itemBuilder:     (_, i) => Padding(
-                padding: EdgeInsets.only(right: i < actus.length - 1 ? 14 : 0),
-                child:   _ActuCard(actu: actus[i]),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Actualités SPAD',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: scheme.onSurface)),
+            TextButton(onPressed: () {}, child: const Text('Voir tout', style: TextStyle(fontSize: 12))),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 195,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: actus.length,
+            itemBuilder: (_, i) => Padding(
+              padding: EdgeInsets.only(right: i < actus.length - 1 ? 10 : 0),
+              child: _ActuCard(data: actus[i]),
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
@@ -256,215 +256,137 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildServices(BuildContext ctx) {
     final scheme = Theme.of(ctx).colorScheme;
     final services = [
-      (Icons.favorite,        'Suivi santé',       'Médicaments, tensions, glycémie au quotidien.'),
-      (Icons.restaurant_menu, 'Nutrition',          'Repas adaptés aux prescriptions médicales.'),
-      (Icons.directions_walk, 'Activité physique', 'Sorties et maintien de la mobilité.'),
-      (Icons.clean_hands,     'Hygiène',           'Aide à la toilette et soins personnels.'),
-      (Icons.medication,      'Médicaments',        'Pilulier intelligent + administration.'),
-      (Icons.description,     'Rapports',          'Compte-rendu quotidien famille/médecin.'),
+      (Icons.favorite_rounded,    'Suivi santé',    'Vitaux, médocs, glycémie',    const Color(0xFF007EB0)),
+      (Icons.restaurant_rounded,  'Nutrition',      'Repas adaptés & hydratation', const Color(0xFF08664F)),
+      (Icons.directions_walk,     'Kinésithérapie', 'Séances & mobilité',          const Color(0xFFC28018)),
+      (Icons.clean_hands_rounded, 'Hygiène',        'Soins corporels quotidiens',  const Color(0xFF007E81)),
+      (Icons.medication_rounded,  'Médicaments',    'Pilulier intelligent',         const Color(0xFF007EB0)),
+      (Icons.description_rounded, 'Rapports',       'Compte-rendu famille/médecin',const Color(0xFF08664F)),
     ];
-    return Container(
-      color:   scheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Nos services', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          LayoutBuilder(builder: (_, c) {
-            final cols = c.maxWidth < 600 ? 1 : c.maxWidth < 900 ? 2 : 3;
-            return GridView.count(
-              crossAxisCount:   cols,
-              shrinkWrap:       true,
-              physics:          const NeverScrollableScrollPhysics(),
-              mainAxisSpacing:  12,
-              crossAxisSpacing: 12,
-              childAspectRatio: cols == 1 ? 5.0 : 2.8,
-              children: services.map((s) => _ServiceTile(icon: s.$1, titre: s.$2, desc: s.$3)).toList(),
-            );
-          }),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Nos services', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: scheme.onSurface)),
+        const SizedBox(height: 10),
+        ...services.map((s) => Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: scheme.surface, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: scheme.outline.withOpacity(0.15))),
+          child: Row(children: [
+            Container(width: 40, height: 40,
+                decoration: BoxDecoration(
+                    color: s.$4.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                child: Icon(s.$1, color: s.$4, size: 20)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(s.$3, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            ])),
+            Icon(Icons.arrow_forward_ios_rounded, size: 12, color: scheme.onSurfaceVariant),
+          ]),
+        )),
+      ]),
     );
   }
 
   // ── FOOTER ────────────────────────────────────────────────────
   Widget _buildFooter(BuildContext ctx) {
     return Container(
-      color:   const Color(0xFF004345),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFF007EB0), Color(0xFF004345)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(18)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('SPAD Cameroun',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        Text('Société de Prestation d\'Aide à Domicile — Yaoundé & Douala',
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13)),
-        const SizedBox(height: 20),
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 3),
+        Text('NkoIndongo, Immeuble Bayiga Center',
+            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+        Text('Tél : 680 42 25 51 / 690 97 99 32',
+            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+        const SizedBox(height: 14),
         Row(children: [
-          FilledButton.icon(
-            onPressed: () => ctx.go(RouteNames.login),
-            icon:  const Icon(Icons.login, size: 16),
-            label: const Text('Se connecter'),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF00C7CC),
-              foregroundColor: Colors.white),
-          ),
+          Expanded(child: OutlinedButton(
+              onPressed: () => ctx.go(RouteNames.login),
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white54),
+                  padding: const EdgeInsets.symmetric(vertical: 8)),
+              child: const Text('Connexion', style: TextStyle(fontSize: 12)))),
           const SizedBox(width: 10),
-          OutlinedButton(
-            onPressed: () => ctx.go(RouteNames.register),
-            style:     OutlinedButton.styleFrom(foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white54)),
-            child: const Text('Souscrire'),
-          ),
+          Expanded(child: FilledButton(
+              onPressed: () => ctx.go(RouteNames.register),
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF004345),
+                  padding: const EdgeInsets.symmetric(vertical: 8)),
+              child: const Text('Souscrire', style: TextStyle(fontSize: 12)))),
         ]),
-        const SizedBox(height: 20),
-        Text('© 2025 SPAD Cameroun',
-          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
       ]),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// MODÈLES + WIDGETS INTERNES
+// WIDGETS INTERNES
 // ─────────────────────────────────────────────────────────────
+class _HeroData { const _HeroData(this.t, this.s, this.img, this.bg);
+final String t, s, img; final Color bg; }
 
-class _Slide {
-  const _Slide(this.title, this.subtitle, this.imagePath);
-  final String title, subtitle, imagePath;
-}
-
-class _SlideWidget extends StatelessWidget {
-  const _SlideWidget({required this.slide});
-  final _Slide slide;
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.data});
+  final _HeroData data;
   @override
-  Widget build(BuildContext context) {
-    return Stack(fit: StackFit.expand, children: [
-      Image.asset(slide.imagePath, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF004345), Color(0xFF00C7CC)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight),
-          ),
-        ),
-      ),
-      Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.black.withOpacity(0.65), Colors.transparent],
-            begin: Alignment.centerLeft, end: Alignment.centerRight),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(28, 0, 120, 80),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(slide.title,
-            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700, height: 1.2)),
-          const SizedBox(height: 10),
-          Text(slide.subtitle,
-            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 15)),
-        ]),
-      ),
-    ]);
-  }
+  Widget build(BuildContext ctx) => Stack(fit: StackFit.expand, children: [
+    Image.asset(data.img, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(color: data.bg)),
+    Container(decoration: BoxDecoration(gradient: LinearGradient(
+        colors: [data.bg.withOpacity(0.85), Colors.transparent],
+        begin: Alignment.bottomCenter, end: Alignment.topCenter))),
+    Positioned(bottom: 28, left: 18, right: 18, child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(data.t, style: const TextStyle(
+          color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
+      const SizedBox(height: 3),
+      Text(data.s, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
+    ])),
+  ]);
 }
 
-class _Actu {
-  const _Actu(this.titre, this.desc, this.date, this.tag, this.color);
-  final String titre, desc, date, tag; final Color color;
-}
+class _ActuData { const _ActuData(this.t, this.d, this.date, this.tag, this.c, this.img);
+final String t, d, date, tag, img; final Color c; }
 
 class _ActuCard extends StatelessWidget {
-  const _ActuCard({required this.actu});
-  final _Actu actu;
+  const _ActuCard({required this.data});
+  final _ActuData data;
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 260,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: scheme.outline.withOpacity(0.15))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Image placeholder
-          Container(
-            height: 90, decoration: BoxDecoration(
-              color: actu.color.withOpacity(0.12),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-            child: Center(child: Icon(Icons.image_outlined, color: actu.color.withOpacity(0.4), size: 32)),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: actu.color.withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
-                child: Text(actu.tag, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: actu.color)),
-              ),
-              const SizedBox(height: 6),
-              Text(actu.titre, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              Text(actu.date, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.value, required this.label});
-  final String value, label;
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color:        const Color(0xFFEEFCFC),
-          borderRadius: BorderRadius.circular(12),
-          border:       Border.all(color: const Color(0xFF73E6E8))),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: scheme.primary)),
-          const SizedBox(height: 4),
-          Text(label, textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-        ]),
-      ),
-    );
-  }
-}
-
-class _ServiceTile extends StatelessWidget {
-  const _ServiceTile({required this.icon, required this.titre, required this.desc});
-  final IconData icon; final String titre, desc;
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.surface, borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: scheme.outline.withOpacity(0.2))),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40, decoration: BoxDecoration(
-            color: scheme.primaryContainer, borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, size: 20, color: scheme.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(titre, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          Text(desc, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-        ])),
-      ]),
-    );
+  Widget build(BuildContext ctx) {
+    final scheme = Theme.of(ctx).colorScheme;
+    return SizedBox(width: 210, child: Card(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(height: 85, child: Stack(fit: StackFit.expand, children: [
+        Image.asset(data.img, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: data.c.withOpacity(0.15),
+                child: Center(child: Icon(Icons.image_outlined,
+                    color: data.c.withOpacity(0.4), size: 28)))),
+        Positioned(top: 7, left: 7, child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(color: data.c, borderRadius: BorderRadius.circular(999)),
+            child: Text(data.tag, style: const TextStyle(
+                color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)))),
+      ])),
+      Padding(padding: const EdgeInsets.all(9),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(data.t, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: scheme.onSurface)),
+            const SizedBox(height: 3),
+            Text(data.date, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+          ])),
+    ])));
   }
 }

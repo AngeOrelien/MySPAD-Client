@@ -8,12 +8,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../utils/user_session.dart';
 
 // ══════════════════ EVENTS ════════════════════════════════════
+// Les événements déclenchés par l'UI ou d'autres parties de l'app
+// Equatable permet de comparer facilement les instances d'événements pour éviter les redondances
+// AuthEvent est la classe de base, les autres événements en héritent, elle représente une action liée à l'authentification (ex: login, logout, check)
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
   @override List<Object?> get props => [];
+  // List<Object?> représente les propriétés de l'événement utilisées pour la comparaison d'instances (ex: email, password pour AuthLoginRequested)
+  // get props => [] signifie que par défaut, les événements n'ont pas de propriétés à comparer, mais les sous-classes peuvent les ajouter (ex: AuthLoginRequested ajoute email et password)
 }
 
 /// Déclenché au démarrage de l'app pour vérifier si déjà connecté
+/// Phase 7 : lire token depuis flutter_secure_storage ici
+/// Si token valide → AuthAuthenticated, sinon → AuthUnauthenticated
+/// ex de code : final s = UserSession.instance; if (s.isLoggedIn) { emit(AuthAuthenticated(role: s.role, name: s.name, email: s.email)); } else { emit(const AuthUnauthenticated()); } 
 class AuthCheckRequested extends AuthEvent { const AuthCheckRequested(); }
 
 /// L'utilisateur clique "Se connecter"
@@ -39,30 +47,40 @@ class AuthRegisterRequested extends AuthEvent {
 class AuthLogoutRequested extends AuthEvent { const AuthLogoutRequested(); }
 
 // ══════════════════ STATES ════════════════════════════════════
+// Les différents états possibles de l'authentification, émis par le bloc en réponse aux événements
 abstract class AuthState extends Equatable {
   const AuthState();
   @override List<Object?> get props => [];
 }
 
+// AuthInitial : état initial au lancement de l'app, avant toute vérification d'authentification
 class AuthInitial       extends AuthState { const AuthInitial(); }
+
+// AuthLoading : état temporaire pendant la vérification d'authentification ou le processus de login/register
 class AuthLoading       extends AuthState { const AuthLoading(); }
+
+// AuthUnauthenticated : l'utilisateur n'est pas connecté, doit voir l'écran de login/inscription
 class AuthUnauthenticated extends AuthState { const AuthUnauthenticated(); }
 
+// AuthAuthenticated : l'utilisateur est connecté, contient les infos de session (role, name, email) pour personnaliser l'UI et gérer les accès
 class AuthAuthenticated extends AuthState {
   const AuthAuthenticated({required this.role, required this.name, this.email = ''});
   final String role, name, email;
   @override List<Object?> get props => [role, name, email];
 }
 
+// AuthError : une erreur s'est produite lors du login/register, contient un message d'erreur à afficher à l'utilisateur
 class AuthError extends AuthState {
   const AuthError(this.message);
   final String message;
   @override List<Object?> get props => [message];
 }
 
+// AuthRegisterSuccess : l'inscription a réussi, peut être utilisé pour afficher un message de succès ou rediriger vers une page d'attente de validation (pour les familles)
 class AuthRegisterSuccess extends AuthState { const AuthRegisterSuccess(); }
 
 // ══════════════════ BLOC ═════════════════════════════════════
+// Le bloc qui gère la logique d'authentification, reçoit les événements et émet les états correspondants
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheck);

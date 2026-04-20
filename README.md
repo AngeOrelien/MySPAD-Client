@@ -1,6 +1,6 @@
-# myspad
+# spadcameroun
 
-A Flutter project for SPAD CAMEROUN App
+A Flutter Project for SPAD CAMEROUN App
 
 ## Getting Started
 
